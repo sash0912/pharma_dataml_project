@@ -59,13 +59,13 @@ Features such as these will assist the machine learning model in learning short-
 4. Machines I Want to Train Using ML Algorithms
 
 Three ML models that I plan to implement are:
-1. RIDGE regression
+RIDGE regression
 Simple linear regression model that can assist in forming a baseline for comparison.
 
-2. Random Forest Regressor
+Random Forest Regressor
 An example of a tree-based model that is capable of modeling nonlinear behavior in the data.
 
-3. XGBoost
+XGBoost
 A strong gradient boosting model that typically works best for structured time-series forecasting tasks.
 
 Now, to compare these models, I will use the following metrics:
@@ -88,8 +88,8 @@ Private Model
 Now, after I have trained these algorithms with my desired set of datasets, the trained model that I acquire is private because: It is customized with my data set It identifies patterns that are exclusive to pharma sales Its weights and parameters are not publicly available Later on, I’ll store these trained models in files with the suffix ‘.pkl’ within a folder named ‘models’. 
 
 6. Interactive Forecasting App (Planned For deployment process)
- I have plans to design a simple UI with the use of Streamlit. Via this application, a client will be able to: Choose a drug Choose a region Predict how many months are to be forecasted View predictions in table form Display predictions on a line chart After developing the model, I plan to use this model with that Streamlit application to make a real-time forecast.
+I have plans to design a simple UI with the use of Streamlit. Via this application, a client will be able to: Choose a drug Choose a region Predict how many months are to be forecasted View predictions in table form Display predictions on a line chart After developing the model, I plan to use this model with that Streamlit application to make a real-time forecast.
  
- This is my plan so far, to my understadings, changes will be made as I develop the project further.
+This is my plan so far, to my understadings, changes will be made as I develop the project further.
 
 
