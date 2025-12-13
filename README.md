@@ -39,6 +39,7 @@ After standardizing, I will merge them together into a single, complete dataset 
 3. Planned Data Processing Procedures
 
 Standardizing Column Names
+
 Since different datasets have different column names, I am planning to write a logic that will identify these columns for a uniform naming convention such as:
 
 date
@@ -76,7 +77,7 @@ Price-related attributes
 
 Features such as these will assist the machine learning model in learning short-run as well as long-run cycles.
 
-4. Machines I Want to Train Using ML Algorithms
+4. ML Algorithms
 
 Three ML models that I plan to implement are:
 
@@ -100,7 +101,7 @@ MAPE (Mean Absolute Percentage Error)
 After that, I will choose the best-performing model, which I will use as my final forecasting model.
 
 5. Public vs. Private Models (My Understanding and Plan)
-6. 
+
 Public Models
 
 This pertains to the machine learning algorithms which are publicly available in libraries such as:
