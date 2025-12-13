@@ -59,6 +59,7 @@ Features such as these will assist the machine learning model in learning short-
 4. Machines I Want to Train Using ML Algorithms
 
 Three ML models that I plan to implement are:
+
 RIDGE regression
 Simple linear regression model that can assist in forming a baseline for comparison.
 
