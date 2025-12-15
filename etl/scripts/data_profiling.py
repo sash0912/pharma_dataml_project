@@ -17,7 +17,7 @@ for file in os.listdir(RAW_DATA_DIR):
         try:
             df = pd.read_csv(file_path)
         except Exception as e:
-            report_lines.append(f"❌ Error reading file: {e}\n")
+            report_lines.append(f" Error reading file: {e}\n")
             continue
 
         report_lines.append(f"- Number of rows: {df.shape[0]}")
