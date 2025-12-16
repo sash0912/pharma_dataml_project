@@ -36,3 +36,15 @@ for pharmaceutical demand forecasting.
 
 
 
+XGBoost Results
+
+
+
+\- XGBoost achieved the lowest MAE and RMSE among all models
+
+\- Boosting helps capture complex demand patterns
+
+\- Selected as the primary forecasting model
+
+
+
