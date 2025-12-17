@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pharma Demand Forecast Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f6fa;
+      padding: 30px;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .title {
+      color: #666;
+      font-size: 14px;
+    }
+    .value {
+      font-size: 26px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Pharma Demand Forecast Dashboard</h1>
+
+<div class="cards">
+  <div class="card">
+    <div class="title">Total Forecasts</div>
+    <div class="value" id="total">-</div>
+  </div>
+  <div class="card">
+    <div class="title">Average Demand</div>
+    <div class="value" id="avg">-</div>
+  </div>
+  <div class="card">
+    <div class="title">Minimum Demand</div>
+    <div class="value" id="min">-</div>
+  </div>
+  <div class="card">
+    <div class="title">Maximum Demand</div>
+    <div class="value" id="max">-</div>
+  </div>
+</div>
+
+<script>
+  fetch("http://127.0.0.1:8000/analytics/summary")
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById("total").innerText = data.total_predictions;
+      document.getElementById("avg").innerText = data.average_demand;
+      document.getElementById("min").innerText = data.min_demand;
+      document.getElementById("max").innerText = data.max_demand;
+    })
+    .catch(error => {
+      alert("Backend not reachable. Is the server running?");
+      console.error(error);
+    });
+</script>
+
+</body>
+</html>
