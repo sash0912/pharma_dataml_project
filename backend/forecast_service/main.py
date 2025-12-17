@@ -1,3 +1,4 @@
+from backend.forecast_service.db import init_db, save_forecast
 from fastapi import FastAPI
 from pydantic import BaseModel
 import joblib
@@ -12,8 +13,7 @@ app = FastAPI(
     title="Pharmaceutical Demand Forecast API",
     version="1.0"
 )
-
-
+init_db()
 class ForecastRequest(BaseModel):
     lag_1: float
     lag_3: float
@@ -34,4 +34,29 @@ def health_check():
 def predict_demand(request: ForecastRequest):
     data = pd.DataFrame([request.dict()])
     prediction = model.predict(data)[0]
+
+    save_forecast(request.dict(), float(prediction))
+
     return {"predicted_qty": round(float(prediction), 2)}
+@app.get("/history")
+def get_forecast_history(limit: int = 10):
+    import sqlite3
+
+    conn = sqlite3.connect("backend/data/forecasts.db")
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT created_at, predicted_qty
+        FROM forecasts
+        ORDER BY created_at DESC
+        LIMIT ?
+    """, (limit,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {"created_at": r[0], "predicted_qty": r[1]}
+        for r in rows
+    ]
+
