@@ -1,3 +1,4 @@
+from backend.forecast_service.schemas import ForecastRequest, ForecastResponse
 from backend.forecast_service.analytics import get_basic_analytics, get_recent_trend
 from backend.forecast_service.db import init_db, save_forecast
 from fastapi import FastAPI
@@ -36,9 +37,15 @@ def predict_demand(request: ForecastRequest):
     data = pd.DataFrame([request.dict()])
     prediction = model.predict(data)[0]
 
+    prediction = max(prediction, 0)      # prevent negative demand
+    prediction = round(prediction, 2)    # clean output
+    prediction = prediction * 1.05       # 5% safety buffer
+
+
     save_forecast(request.dict(), float(prediction))
 
     return {"predicted_qty": round(float(prediction), 2)}
+
 @app.get("/history")
 def get_forecast_history(limit: int = 10):
     import sqlite3
