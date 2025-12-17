@@ -1,3 +1,4 @@
+from backend.forecast_service.analytics import get_basic_analytics, get_recent_trend
 from backend.forecast_service.db import init_db, save_forecast
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -59,4 +60,12 @@ def get_forecast_history(limit: int = 10):
         {"created_at": r[0], "predicted_qty": r[1]}
         for r in rows
     ]
+@app.get("/analytics/summary")
+def analytics_summary():
+    return get_basic_analytics()
+
+
+@app.get("/analytics/trend")
+def analytics_trend(days: int = 7):
+    return get_recent_trend(days)
 
