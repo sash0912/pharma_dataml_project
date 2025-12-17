@@ -1,10 +1,11 @@
+import pandas as pd
+import joblib
+from fastapi import FastAPI
+from pydantic import BaseModel
 from backend.forecast_service.schemas import ForecastRequest, ForecastResponse
 from backend.forecast_service.analytics import get_basic_analytics, get_recent_trend
 from backend.forecast_service.db import init_db, save_forecast
-from fastapi import FastAPI
-from pydantic import BaseModel
-import joblib
-import pandas as pd
+from backend.forecast_service.cache import get_cached_prediction, set_cached_prediction
 
 MODEL_PATH = "ml/models/xgboost_model.pkl"
 
@@ -34,15 +35,21 @@ def health_check():
 
 @app.post("/predict", response_model=ForecastResponse)
 def predict_demand(request: ForecastRequest):
-    data = pd.DataFrame([request.dict()])
+    input_data = request.dict()
+    data = pd.DataFrame([input_data])
+
+    cached = get_cached_prediction(input_data)
+    if cached is not None:
+        return {"predicted_qty": cached}
+
     prediction = model.predict(data)[0]
 
-    prediction = max(prediction, 0)      # prevent negative demand
-    prediction = round(prediction, 2)    # clean output
-    prediction = prediction * 1.05       # 5% safety buffer
+    prediction = max(prediction, 0)
+    prediction = round(prediction, 2)
+    prediction = prediction * 1.05
 
-
-    save_forecast(request.dict(), float(prediction))
+    save_forecast(input_data, float(prediction))
+    set_cached_prediction(input_data, float(prediction))
 
     return {"predicted_qty": round(float(prediction), 2)}
 
