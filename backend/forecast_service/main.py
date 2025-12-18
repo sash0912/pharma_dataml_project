@@ -1,37 +1,41 @@
+from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import joblib
 from fastapi import FastAPI
-from pydantic import BaseModel
 from backend.forecast_service.schemas import ForecastRequest, ForecastResponse
-from backend.forecast_service.analytics import get_basic_analytics, get_recent_trend
-from backend.forecast_service.db import init_db, save_forecast
-from backend.forecast_service.cache import get_cached_prediction, set_cached_prediction
+from backend.forecast_service.analytics import (
+    get_basic_analytics,
+    get_recent_trend
+)
+from backend.forecast_service.db import init_db, save_forecast, DB_PATH
+from backend.forecast_service.cache import (
+    get_cached_prediction,
+    set_cached_prediction
+)
+import sqlite3
 
 MODEL_PATH = "ml/models/xgboost_model.pkl"
-
-
 model = joblib.load(MODEL_PATH)
 
 app = FastAPI(
     title="Pharmaceutical Demand Forecast API",
     version="1.0"
 )
-init_db()
-class ForecastRequest(BaseModel):
-    lag_1: float
-    lag_3: float
-    lag_6: float
-    lag_12: float
-    rolling_mean_3: float
-    rolling_mean_6: float
-    rolling_std_3: float
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # allow all (OK for dev)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-class ForecastResponse(BaseModel):
-    predicted_qty: float
+init_db()
+
 
 @app.get("/")
 def health_check():
     return {"status": "Forecast service is running"}
+
 
 @app.post("/predict", response_model=ForecastResponse)
 def predict_demand(request: ForecastRequest):
@@ -43,21 +47,18 @@ def predict_demand(request: ForecastRequest):
         return {"predicted_qty": cached}
 
     prediction = model.predict(data)[0]
-
     prediction = max(prediction, 0)
-    prediction = round(prediction, 2)
-    prediction = prediction * 1.05
+    prediction = round(prediction * 1.05, 2)
 
     save_forecast(input_data, float(prediction))
     set_cached_prediction(input_data, float(prediction))
 
-    return {"predicted_qty": round(float(prediction), 2)}
+    return {"predicted_qty": prediction}
+
 
 @app.get("/history")
 def get_forecast_history(limit: int = 10):
-    import sqlite3
-
-    conn = sqlite3.connect("backend/data/forecasts.db")
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -74,6 +75,8 @@ def get_forecast_history(limit: int = 10):
         {"created_at": r[0], "predicted_qty": r[1]}
         for r in rows
     ]
+
+
 @app.get("/analytics/summary")
 def analytics_summary():
     return get_basic_analytics()
@@ -81,5 +84,4 @@ def analytics_summary():
 
 @app.get("/analytics/trend")
 def analytics_trend(days: int = 7):
-    return get_recent_trend(days)
-
+    return get_recent_trend(limit=days)

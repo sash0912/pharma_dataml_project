@@ -1,5 +1,8 @@
 import sqlite3
+from fastapi import APIRouter
 from backend.forecast_service.db import DB_PATH
+
+router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 def get_basic_analytics():
     conn = sqlite3.connect(DB_PATH)
@@ -39,9 +42,19 @@ def get_recent_trend(limit=7):
     rows = cursor.fetchall()
     conn.close()
 
-    rows.reverse()  
+    rows.reverse()
 
     return [
         {"date": r[0], "predicted_qty": r[1]}
         for r in rows
     ]
+
+
+@router.get("/summary")
+def summary():
+    return get_basic_analytics()
+
+
+@router.get("/trend")
+def trend(days: int = 7):
+    return get_recent_trend(limit=days)
