@@ -50,6 +50,16 @@ def save_forecast(input_data: dict, prediction: float):
         input_data["rolling_std_3"],
         prediction
     ))
+def save_drug_forecast(drug_name, predicted_qty, method):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO drug_forecasts (created_at, drug_name, predicted_qty, method)
+        VALUES (datetime('now'), ?, ?, ?)
+    """, (drug_name, predicted_qty, method))
 
     conn.commit()
     conn.close()
+
+

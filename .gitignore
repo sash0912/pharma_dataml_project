@@ -20,3 +20,8 @@ mlruns/
 # OS
 .DS_Store
 Thumbs.db
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3

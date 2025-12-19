@@ -14,7 +14,7 @@ def get_basic_analytics():
             AVG(predicted_qty) as avg_demand,
             MIN(predicted_qty) as min_demand,
             MAX(predicted_qty) as max_demand
-        FROM forecasts
+        FROM drug_forecasts
     """)
 
     row = cursor.fetchone()

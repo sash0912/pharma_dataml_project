@@ -1,52 +1,25 @@
 import pandas as pd
 import sqlite3
 
+CSV_PATH = "data/raw/kaggle_sample_pharma_sales.csv"
 DB_PATH = "backend/data/forecasts.db"
-DATA_PATH = "data/raw/kaggle_sample_pharma_sales.csv"
 
-def load_data():
-    df = pd.read_csv(DATA_PATH)
-
-    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-
-    df["sale_date"] = pd.to_datetime(df["sale_date"])
-
-    df["month"] = df["sale_date"].dt.to_period("M").astype(str)
-
-    monthly = (
-        df.groupby(["month", "drug_name"])["units_sold"]
-        .sum()
-        .reset_index()
-    )
-
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+df = pd.read_csv(CSV_PATH)
 
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS historical_demand (
-            date TEXT,
-            drug_name TEXT,
-            qty INTEGER
-        )
-    """)
+df["Sale Date"] = pd.to_datetime(df["Sale Date"])
+df["Units Sold"] = df["Units Sold"].astype(int)
 
+final_df = df[["Sale Date", "Drug Name", "Units Sold"]].rename(
+    columns={
+        "Sale Date": "date",
+        "Drug Name": "drug_name",
+        "Units Sold": "qty"
+    }
+)
 
-    cursor.execute("DELETE FROM historical_demand")
+conn = sqlite3.connect(DB_PATH)
+final_df.to_sql("historical_demand", conn, if_exists="append", index=False)
+conn.close()
 
-    for _, row in monthly.iterrows():
-        cursor.execute(
-            """
-            INSERT INTO historical_demand (date, drug_name, qty)
-            VALUES (?, ?, ?)
-            """,
-            (row["month"], row["drug_name"], int(row["units_sold"]))
-        )
-
-    conn.commit()
-    conn.close()
-
-    print("Historical drug-level demand loaded successfully")
-
-if __name__ == "__main__":
-    load_data()
+print(f"Inserted {len(final_df)} rows into historical_demand")

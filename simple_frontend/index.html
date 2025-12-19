@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <title>Pharmaceutical Demand Forecasting</title>
+
+  
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
 
   <style>
     body {
@@ -22,11 +26,6 @@
     header h1 {
       margin: 0;
       font-size: 26px;
-    }
-
-    header p {
-      margin-top: 6px;
-      opacity: 0.9;
     }
 
     .container {
@@ -89,26 +88,18 @@
     canvas {
       margin-top: 10px;
     }
-
-    footer {
-      text-align: center;
-      padding: 20px;
-      font-size: 13px;
-      color: #777;
-    }
   </style>
 </head>
 
 <body>
 
 <header>
-  <h1> Pharmaceutical Demand Forecasting Dashboard</h1>
-  
+  <h1>Pharmaceutical Demand Forecasting Dashboard</h1>
 </header>
 
 <div class="container">
 
- 
+  
   <div class="grid">
     <div class="card">
       <h2>Total Predictions</h2>
@@ -129,12 +120,15 @@
     </div>
   </div>
 
-   <div class="card" style="margin-top:30px;">
+  
+  <div class="card" style="margin-top:30px;">
     <h2>Recent Forecast Trend</h2>
-    <canvas id="trendChart" height="100"></canvas>
+    <div style="height:350px;">
+      <canvas id="trendChart"></canvas>
+    </div>
   </div>
 
-
+  
   <div class="grid" style="margin-top:30px;">
     <div class="card">
       <h2>Drug-Level Forecast</h2>
@@ -146,12 +140,11 @@
     <div class="card">
       <h2>Forecast Result</h2>
       <div class="metric" id="forecastValue">–</div>
-      <div class="label">Predicted quantity for next period</div>
+      <div class="label">Predicted quantity required</div>
     </div>
   </div>
 
 </div>
-
 
 <script>
 const API = "http://127.0.0.1:8000";
@@ -186,20 +179,55 @@ function loadDrugTrend(drug) {
   fetch(`${API}/analytics/drug/${encodeURIComponent(drug)}/trend`)
     .then(r => r.json())
     .then(data => {
+
       if (trendChart) trendChart.destroy();
+
+      const labels = data.map(d => new Date(d.date));
+      const values = data.map(d => d.qty);
 
       trendChart = new Chart(
         document.getElementById("trendChart"),
         {
           type: "line",
           data: {
-            labels: data.map(x => x.date),
+            labels: labels,
             datasets: [{
               label: `${drug} Demand`,
-              data: data.map(x => x.qty),
+              data: values,
               borderColor: "#2c5364",
-              tension: 0.3
+              borderWidth: 2,
+              tension: 0,              // TRUE linear
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              fill: false
             }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: "top" }
+            },
+            scales: {
+              x: {
+                type: "time",
+                time: {
+                  unit: "month",
+                  displayFormats: { month: "MMM yyyy" }
+                },
+                title: { display: true, text: "Time" },
+                grid: { display: false }
+              },
+              y: {
+                beginAtZero: true,
+                title: { display: true, text: "Demand Quantity" },
+                ticks: {
+                  stepSize: 500,
+                  callback: v => v.toLocaleString()
+                },
+                grid: { color: "rgba(0,0,0,0.08)" }
+              }
+            }
           }
         }
       );
@@ -209,14 +237,13 @@ function loadDrugTrend(drug) {
 
 function forecastDrug() {
   const drug = document.getElementById("drugSelect").value;
-
   loadDrugTrend(drug);
 
   fetch(`${API}/forecast/drug/${encodeURIComponent(drug)}`)
     .then(r => r.json())
     .then(d => {
       document.getElementById("forecastValue").innerText =
-        d.forecast ?? "N/A";
+        d.predicted_next_month_qty ?? d.forecast ?? "N/A";
     });
 }
 </script>

@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 import joblib
 
-from backend.forecast_service.db import DB_PATH
+from backend.forecast_service.db import DB_PATH, save_drug_forecast
 
 router = APIRouter(prefix="/forecast", tags=["Drug Forecast"])
 
@@ -28,7 +28,7 @@ def forecast_drug(drug_name: str):
 
     conn.close()
 
-    # 🛑 If no data at all
+    
     if df.empty:
         return {
             "drug_name": drug_name,
@@ -37,28 +37,32 @@ def forecast_drug(drug_name: str):
             "note": "No historical data available"
         }
 
+    
     df["date"] = pd.to_datetime(df["date"])
 
-    # -----------------------------
-    # 🧠 FALLBACK MODE (STATISTICAL)
-    # -----------------------------
-    if len(df) < 13:
+    
+    if len(df) < 7:
         avg_qty = df["qty"].mean()
         trend = df["qty"].diff().mean()
 
         prediction = avg_qty + (trend if not pd.isna(trend) else 0)
         prediction = max(round(float(prediction), 2), 0)
 
+        
+        save_drug_forecast(
+            drug_name=drug_name,
+            predicted_qty=prediction,
+            method="statistical_fallback"
+        )
+
         return {
             "drug_name": drug_name,
             "predicted_next_month_qty": prediction,
             "method": "statistical_fallback",
-            "note": "Insufficient history for ML; used average + trend"
+            "note": "Used average + trend due to limited data"
         }
 
-    # -----------------------------
-    # 🤖 ML MODE (FULL HISTORY)
-    # -----------------------------
+    
     df["lag_1"] = df["qty"].shift(1)
     df["lag_3"] = df["qty"].shift(3)
     df["lag_6"] = df["qty"].shift(6)
@@ -70,6 +74,25 @@ def forecast_drug(drug_name: str):
 
     df = df.dropna()
 
+    
+    if df.empty:
+        avg_qty = df["qty"].mean()
+        prediction = max(round(float(avg_qty), 2), 0)
+
+        save_drug_forecast(
+            drug_name=drug_name,
+            predicted_qty=prediction,
+            method="fallback_after_feature_drop"
+        )
+
+        return {
+            "drug_name": drug_name,
+            "predicted_next_month_qty": prediction,
+            "method": "fallback_after_feature_drop",
+            "note": "Feature engineering reduced data too much"
+        }
+
+    
     latest = df.iloc[-1][[
         "lag_1",
         "lag_3",
@@ -81,13 +104,19 @@ def forecast_drug(drug_name: str):
     ]]
 
     X = pd.DataFrame([latest])
+
     prediction = model.predict(X)[0]
     prediction = max(round(float(prediction), 2), 0)
 
-    return {
-    "drug_name": drug_name,
-    "forecast": round(prediction, 2),
-    "method": "ML"  
-}
-
     
+    save_drug_forecast(
+        drug_name=drug_name,
+        predicted_qty=prediction,
+        method="ML"
+    )
+
+    return {
+        "drug_name": drug_name,
+        "predicted_next_month_qty": prediction,
+        "method": "ML"
+    }
