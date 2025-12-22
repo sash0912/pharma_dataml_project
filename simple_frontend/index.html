@@ -4,10 +4,7 @@
   <meta charset="UTF-8" />
   <title>Pharmaceutical Demand Forecasting</title>
 
-  
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
 
   <style>
     body {
@@ -65,7 +62,7 @@
       font-size: 13px;
     }
 
-    select, button {
+    select, button, textarea {
       width: 100%;
       padding: 10px;
       margin-top: 10px;
@@ -88,6 +85,12 @@
     canvas {
       margin-top: 10px;
     }
+
+    pre {
+      background: #f7f7f7;
+      padding: 10px;
+      border-radius: 6px;
+    }
   </style>
 </head>
 
@@ -99,12 +102,12 @@
 
 <div class="container">
 
-  
+  <!-- KPI SUMMARY -->
   <div class="grid">
     <div class="card">
       <h2>Total Predictions</h2>
       <div class="metric" id="totalPred">–</div>
-      <div class="label">Predictions stored in system</div>
+      <div class="label">Predictions stored</div>
     </div>
 
     <div class="card">
@@ -116,19 +119,59 @@
     <div class="card">
       <h2>Demand Range</h2>
       <div class="metric" id="rangeDemand">–</div>
-      <div class="label">Min – Max demand</div>
+      <div class="label">Min – Max</div>
     </div>
   </div>
 
-  
+  <!-- TREND CHART -->
   <div class="card" style="margin-top:30px;">
-    <h2>Recent Forecast Trend</h2>
-    <div style="height:350px;">
+    <h2>Historical Demand Trend</h2>
+
+    <label><b>Time Range</b></label>
+    <select id="timeRange" onchange="renderTrend()">
+      <option value="3">Last 3 Months</option>
+      <option value="6">Last 6 Months</option>
+      <option value="12" selected>Last 12 Months</option>
+    </select>
+
+    <div style="height:350px; margin-top:15px;">
       <canvas id="trendChart"></canvas>
     </div>
   </div>
 
-  
+  <!-- ASK QUESTION PANEL -->
+  <div class="card" style="margin-top:30px;">
+    <h2>Ask a Question</h2>
+
+    <textarea
+      id="userQuestion"
+      placeholder="Example: How much Amoxicillin is required next month?"
+    ></textarea>
+
+    <button onclick="askQuestion()">Ask</button>
+
+    <div style="margin-top:15px;">
+  <b>Response:</b>
+  <div
+    id="qaResponse"
+    style="
+      margin-top:8px;
+      padding:12px;
+      background:#f8f9fb;
+      border-radius:6px;
+      max-height:200px;
+      overflow-y:auto;
+      white-space:pre-wrap;
+      word-wrap:break-word;
+      line-height:1.4;
+      font-size:14px;
+    "
+  ></div>
+</div>
+
+  </div>
+
+  <!-- FORECAST -->
   <div class="grid" style="margin-top:30px;">
     <div class="card">
       <h2>Drug-Level Forecast</h2>
@@ -140,7 +183,7 @@
     <div class="card">
       <h2>Forecast Result</h2>
       <div class="metric" id="forecastValue">–</div>
-      <div class="label">Predicted quantity required</div>
+      <div class="label">Predicted quantity</div>
     </div>
   </div>
 
@@ -148,104 +191,131 @@
 
 <script>
 const API = "http://127.0.0.1:8000";
-let trendChart;
+let trendChart = null;
+let fullTrendData = [];
+let currentDrug = null;
 
-
+/* KPI SUMMARY */
 fetch(`${API}/analytics/summary`)
   .then(r => r.json())
   .then(d => {
-    document.getElementById("totalPred").innerText = d.total_predictions;
-    document.getElementById("avgDemand").innerText = d.average_demand;
-    document.getElementById("rangeDemand").innerText =
-      `${d.min_demand} – ${d.max_demand}`;
+    totalPred.innerText = d.total_predictions;
+    avgDemand.innerText = d.average_demand;
+    rangeDemand.innerText = `${d.min_demand} – ${d.max_demand}`;
   });
 
-
+/* DRUG LIST */
 fetch(`${API}/analytics/drugs`)
   .then(r => r.json())
   .then(drugs => {
     const sel = document.getElementById("drugSelect");
+    sel.innerHTML = "";
     drugs.forEach(d => {
       const o = document.createElement("option");
       o.value = d;
       o.textContent = d;
       sel.appendChild(o);
     });
-    loadDrugTrend(drugs[0]);
+    if (drugs.length) {
+      currentDrug = drugs[0];
+      loadDrugTrend(currentDrug);
+    }
   });
 
-
+/* LOAD TREND */
 function loadDrugTrend(drug) {
+  currentDrug = drug;
   fetch(`${API}/analytics/drug/${encodeURIComponent(drug)}/trend`)
     .then(r => r.json())
     .then(data => {
-
-      if (trendChart) trendChart.destroy();
-
-      const labels = data.map(d => new Date(d.date));
-      const values = data.map(d => d.qty);
-
-      trendChart = new Chart(
-        document.getElementById("trendChart"),
-        {
-          type: "line",
-          data: {
-            labels: labels,
-            datasets: [{
-              label: `${drug} Demand`,
-              data: values,
-              borderColor: "#2c5364",
-              borderWidth: 2,
-              tension: 0,              // TRUE linear
-              pointRadius: 2,
-              pointHoverRadius: 5,
-              fill: false
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { position: "top" }
-            },
-            scales: {
-              x: {
-                type: "time",
-                time: {
-                  unit: "month",
-                  displayFormats: { month: "MMM yyyy" }
-                },
-                title: { display: true, text: "Time" },
-                grid: { display: false }
-              },
-              y: {
-                beginAtZero: true,
-                title: { display: true, text: "Demand Quantity" },
-                ticks: {
-                  stepSize: 500,
-                  callback: v => v.toLocaleString()
-                },
-                grid: { color: "rgba(0,0,0,0.08)" }
-              }
-            }
-          }
-        }
-      );
+      fullTrendData = data || [];
+      renderTrend();
     });
 }
 
+/* RENDER TREND */
+function renderTrend() {
+  if (!fullTrendData.length) return;
 
+  const months = parseInt(timeRange.value);
+  const sliced = fullTrendData.slice(-months);
+
+  const labels = sliced.map(d => d.date);
+  const values = sliced.map(d => d.qty);
+
+  if (trendChart) trendChart.destroy();
+
+  trendChart = new Chart(trendChartEl, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: `${currentDrug} Demand`,
+        data: values,
+        borderColor: "#2c5364",
+        backgroundColor: "rgba(44,83,100,0.2)",
+        borderWidth: 3,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true },
+        x: {}
+      }
+    }
+  });
+}
+
+/* ASK QUESTION — FIXED ENDPOINT */
+function askQuestion() {
+  const question = userQuestion.value.trim();
+  if (!question) return alert("Enter a question");
+
+  fetch(`${API}/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question })
+  })
+  .then(r => r.json())
+  .then(d => {
+    qaResponse.textContent = d.answer ?? JSON.stringify(d, null, 2);
+  })
+  .catch(() => {
+    qaResponse.textContent = "Backend error";
+  });
+}
+
+/* FORECAST */
 function forecastDrug() {
-  const drug = document.getElementById("drugSelect").value;
+  const drug = drugSelect.value;
   loadDrugTrend(drug);
 
-  fetch(`${API}/forecast/drug/${encodeURIComponent(drug)}`)
-    .then(r => r.json())
-    .then(d => {
-      document.getElementById("forecastValue").innerText =
-        d.predicted_next_month_qty ?? d.forecast ?? "N/A";
-    });
+ fetch(`${API}/forecast/drug/${encodeURIComponent(drug)}`)
+  .then(r => r.json())
+  .then(d => {
+    document.getElementById("forecastValue").innerText =
+      d.predicted_next_month_qty ?? "N/A";
+
+    // ✅ REFRESH KPIs AFTER NEW FORECAST
+    loadKpis();
+  });
 }
+
+/* DOM SHORTCUTS */
+const totalPred = document.getElementById("totalPred");
+const avgDemand = document.getElementById("avgDemand");
+const rangeDemand = document.getElementById("rangeDemand");
+const timeRange = document.getElementById("timeRange");
+const trendChartEl = document.getElementById("trendChart");
+const userQuestion = document.getElementById("userQuestion");
+const qaResponse = document.getElementById("qaResponse");
+const drugSelect = document.getElementById("drugSelect");
+const forecastValue = document.getElementById("forecastValue");
 </script>
 
 </body>

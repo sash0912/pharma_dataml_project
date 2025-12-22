@@ -1,3 +1,5 @@
+from backend.forecast_service.routes.llm_qa import router as llm_router
+from backend.forecast_service.routes.question_answer import router as qa_router
 from backend.forecast_service.routes.drug_forecast import router as drug_forecast_router
 from backend.forecast_service.routes.drug_analytics import router as drug_analytics_router
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +10,7 @@ from backend.forecast_service.schemas import ForecastRequest, ForecastResponse
 from backend.forecast_service.analytics import get_basic_analytics, get_recent_trend
 from backend.forecast_service.db import init_db, save_forecast, DB_PATH
 from backend.forecast_service.cache import get_cached_prediction, set_cached_prediction
+
 import sqlite3
 
 MODEL_PATH = "ml/models/xgboost_model.pkl"
@@ -20,6 +23,8 @@ app = FastAPI(
 
 app.include_router(drug_analytics_router)
 app.include_router(drug_forecast_router)
+app.include_router(qa_router) 
+app.include_router(llm_router)
 
 app.add_middleware(
     CORSMiddleware,

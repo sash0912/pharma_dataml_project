@@ -4,6 +4,7 @@ import pandas as pd
 import joblib
 
 from backend.forecast_service.db import DB_PATH, save_drug_forecast
+  # ✅ ADD THIS
 
 router = APIRouter(prefix="/forecast", tags=["Drug Forecast"])
 
@@ -11,8 +12,10 @@ MODEL_PATH = "ml/models/xgboost_model.pkl"
 model = joblib.load(MODEL_PATH)
 
 
-@router.get("/drug/{drug_name}")
-def forecast_drug(drug_name: str):
+# ----------------------------
+# CORE REUSABLE LOGIC FUNCTION
+# ----------------------------
+def forecast_drug_logic(drug_name: str) -> float:
     conn = sqlite3.connect(DB_PATH)
 
     df = pd.read_sql_query(
@@ -23,46 +26,24 @@ def forecast_drug(drug_name: str):
         ORDER BY date
         """,
         conn,
-        params=(drug_name,)
+        params=(drug_name,),
     )
 
     conn.close()
 
-    
+    # No data
     if df.empty:
-        return {
-            "drug_name": drug_name,
-            "predicted_next_month_qty": 0,
-            "method": "no_data",
-            "note": "No historical data available"
-        }
+        return 0.0
 
-    
     df["date"] = pd.to_datetime(df["date"])
 
-    
+    # Statistical fallback
     if len(df) < 7:
         avg_qty = df["qty"].mean()
         trend = df["qty"].diff().mean()
+        return round(max(avg_qty + (trend if not pd.isna(trend) else 0), 0), 2)
 
-        prediction = avg_qty + (trend if not pd.isna(trend) else 0)
-        prediction = max(round(float(prediction), 2), 0)
-
-        
-        save_drug_forecast(
-            drug_name=drug_name,
-            predicted_qty=prediction,
-            method="statistical_fallback"
-        )
-
-        return {
-            "drug_name": drug_name,
-            "predicted_next_month_qty": prediction,
-            "method": "statistical_fallback",
-            "note": "Used average + trend due to limited data"
-        }
-
-    
+    # Feature engineering
     df["lag_1"] = df["qty"].shift(1)
     df["lag_3"] = df["qty"].shift(3)
     df["lag_6"] = df["qty"].shift(6)
@@ -73,26 +54,9 @@ def forecast_drug(drug_name: str):
     df["rolling_std_3"] = df["qty"].rolling(3).std()
 
     df = df.dropna()
-
-    
     if df.empty:
-        avg_qty = df["qty"].mean()
-        prediction = max(round(float(avg_qty), 2), 0)
+        return 0.0
 
-        save_drug_forecast(
-            drug_name=drug_name,
-            predicted_qty=prediction,
-            method="fallback_after_feature_drop"
-        )
-
-        return {
-            "drug_name": drug_name,
-            "predicted_next_month_qty": prediction,
-            "method": "fallback_after_feature_drop",
-            "note": "Feature engineering reduced data too much"
-        }
-
-    
     latest = df.iloc[-1][[
         "lag_1",
         "lag_3",
@@ -100,23 +64,26 @@ def forecast_drug(drug_name: str):
         "lag_12",
         "rolling_mean_3",
         "rolling_mean_6",
-        "rolling_std_3"
+        "rolling_std_3",
     ]]
 
-    X = pd.DataFrame([latest])
+    prediction = model.predict(pd.DataFrame([latest]))[0]
+    return round(max(float(prediction), 0), 2)
 
-    prediction = model.predict(X)[0]
-    prediction = max(round(float(prediction), 2), 0)
 
-    
-    save_drug_forecast(
-        drug_name=drug_name,
-        predicted_qty=prediction,
-        method="ML"
-    )
+# ----------------------------
+# FASTAPI ENDPOINT (SAVE HERE)
+# ----------------------------
+@router.get("/drug/{drug_name}")
+def forecast_drug(drug_name: str):
+    prediction = forecast_drug_logic(drug_name)
+
+    # ✅ Correct KPI-safe save
+    save_drug_forecast(drug_name, float(prediction))
 
     return {
         "drug_name": drug_name,
         "predicted_next_month_qty": prediction,
-        "method": "ML"
+        "method": "ML / Statistical"
     }
+

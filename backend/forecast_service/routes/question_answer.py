@@ -1,12 +1,17 @@
 from fastapi import APIRouter, HTTPException
 import sqlite3
+
 from backend.forecast_service.db import DB_PATH
 from backend.forecast_service.routes.drug_forecast import forecast_drug_logic
+from backend.forecast_service.llm_service import ask_llm
 
 router = APIRouter(prefix="/ask", tags=["Question Answering"])
 
 
-def extract_drug_name(question: str):
+# ----------------------------
+# Helper: extract drug name
+# ----------------------------
+def extract_drug_name(question: str) -> str:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
@@ -18,45 +23,74 @@ def extract_drug_name(question: str):
         if drug.lower() in question.lower():
             return drug
 
-    raise HTTPException(status_code=400, detail="Drug name not found")
+    return ""
 
 
+# ----------------------------
+# MAIN ASK ENDPOINT
+# ----------------------------
 @router.post("")
 def ask_question(payload: dict):
-    question = payload.get("question", "").lower()
+    question = payload.get("question", "").strip()
 
-    if "next month" in question:
-        drug = extract_drug_name(question)
-        forecast = forecast_drug_logic(drug)
+    if not question:
+        raise HTTPException(status_code=400, detail="Question is required")
+
+    q = question.lower()
+
+    # ----------------------------
+    # 1️⃣ Forecast-type question
+    # ----------------------------
+    if "next month" in q or "required" in q:
+        drug = extract_drug_name(q)
+
+        if not drug:
+            return {
+                "question": question,
+                "answer": "Please specify a valid drug name.",
+                "source": "Validation"
+            }
+
+        qty = forecast_drug_logic(drug)
 
         return {
-            "question": payload["question"],
-            "answer": f"Estimated demand for {drug} next month is {forecast}",
-            "source": "ML Forecast"
+            "question": question,
+            "answer": f"Estimated demand for {drug} next month is approximately {qty}.",
+            "source": "ML / Statistical Model"
         }
 
-    if "highest" in question:
+    # ----------------------------
+    # 2️⃣ Highest / Most demanded
+    # ----------------------------
+    if "highest" in q or "most demanded" in q:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
 
         cursor.execute("""
-            SELECT drug_name, AVG(qty) avg_qty
+            SELECT drug_name, AVG(qty) AS avg_qty
             FROM historical_demand
             GROUP BY drug_name
             ORDER BY avg_qty DESC
             LIMIT 1
         """)
-        drug, avg = cursor.fetchone()
+
+        row = cursor.fetchone()
         conn.close()
 
-        return {
-            "question": payload["question"],
-            "answer": f"{drug} has the highest average demand ({round(avg,2)})",
-            "source": "Historical Analysis"
-        }
+        if row:
+            return {
+                "question": question,
+                "answer": f"{row[0]} has the highest average demand ({round(row[1], 2)} units).",
+                "source": "Historical Analytics"
+            }
+
+    # ----------------------------
+    # 3️⃣ Fallback → LLM (Ollama)
+    # ----------------------------
+    llm_answer = ask_llm(question)
 
     return {
-        "question": payload["question"],
-        "answer": "This question type is not supported yet.",
-        "source": "Rule Engine"
+        "question": question,
+        "answer": llm_answer,
+        "source": "LLM (Ollama)"
     }

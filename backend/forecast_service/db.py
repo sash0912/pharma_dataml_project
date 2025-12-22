@@ -58,8 +58,19 @@ def save_drug_forecast(drug_name, predicted_qty, method):
         INSERT INTO drug_forecasts (created_at, drug_name, predicted_qty, method)
         VALUES (datetime('now'), ?, ?, ?)
     """, (drug_name, predicted_qty, method))
+def save_drug_forecast(drug_name: str, predicted_qty: float):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO forecasts (created_at, predicted_qty)
+        VALUES (datetime('now'), ?)
+    """, (predicted_qty,))
 
     conn.commit()
     conn.close()
+
+
+
 
 
