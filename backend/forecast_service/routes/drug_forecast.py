@@ -4,7 +4,6 @@ import pandas as pd
 import joblib
 
 from backend.forecast_service.db import DB_PATH, save_drug_forecast
-  # ✅ ADD THIS
 
 router = APIRouter(prefix="/forecast", tags=["Drug Forecast"])
 
@@ -12,9 +11,9 @@ MODEL_PATH = "ml/models/xgboost_model.pkl"
 model = joblib.load(MODEL_PATH)
 
 
-# ----------------------------
-# CORE REUSABLE LOGIC FUNCTION
-# ----------------------------
+# ---------------------------------
+# Core reusable forecast logic
+# ---------------------------------
 def forecast_drug_logic(drug_name: str) -> float:
     conn = sqlite3.connect(DB_PATH)
 
@@ -37,7 +36,7 @@ def forecast_drug_logic(drug_name: str) -> float:
 
     df["date"] = pd.to_datetime(df["date"])
 
-    # Statistical fallback
+    # Fallback if data is small
     if len(df) < 7:
         avg_qty = df["qty"].mean()
         trend = df["qty"].diff().mean()
@@ -71,19 +70,18 @@ def forecast_drug_logic(drug_name: str) -> float:
     return round(max(float(prediction), 0), 2)
 
 
-# ----------------------------
-# FASTAPI ENDPOINT (SAVE HERE)
-# ----------------------------
+# ---------------------------------
+# API endpoint
+# ---------------------------------
 @router.get("/drug/{drug_name}")
 def forecast_drug(drug_name: str):
     prediction = forecast_drug_logic(drug_name)
 
-    # ✅ Correct KPI-safe save
-    save_drug_forecast(drug_name, float(prediction))
+    # 🔥 This guarantees KPI update
+    save_drug_forecast(drug_name, prediction)
 
     return {
         "drug_name": drug_name,
         "predicted_next_month_qty": prediction,
         "method": "ML / Statistical"
     }
-

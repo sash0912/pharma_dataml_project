@@ -4,7 +4,10 @@ from backend.forecast_service.db import DB_PATH
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
-
+# ---------------------------
+# KPI SUMMARY (from forecasts)
+# ---------------------------
+@router.get("/summary")
 def get_basic_analytics():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -22,14 +25,18 @@ def get_basic_analytics():
     conn.close()
 
     return {
-        "total_predictions": row[0] if row[0] else 0,
+        "total_predictions": row[0] or 0,
         "average_demand": round(row[1], 2) if row[1] else 0,
-        "min_demand": round(row[2], 2) if row[2] else 0,
-        "max_demand": round(row[3], 2) if row[3] else 0
+        "min_demand": row[2] or 0,
+        "max_demand": row[3] or 0
     }
 
 
-def get_recent_trend(limit: int = 7):
+# ---------------------------
+# RECENT FORECAST TREND
+# ---------------------------
+@router.get("/trend")
+def get_recent_trend(days: int = 7):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
@@ -38,7 +45,7 @@ def get_recent_trend(limit: int = 7):
         FROM forecasts
         ORDER BY created_at DESC
         LIMIT ?
-    """, (limit,))
+    """, (days,))
 
     rows = cursor.fetchall()
     conn.close()
@@ -46,16 +53,50 @@ def get_recent_trend(limit: int = 7):
     rows.reverse()
 
     return [
-        {"date": r[0], "predicted_qty": r[1]}
+        {"date": r[0], "qty": r[1]}
         for r in rows
     ]
 
 
-@router.get("/summary")
-def summary():
-    return get_basic_analytics()
+# ---------------------------
+# DRUG LIST (from historical_demand)
+# ---------------------------
+@router.get("/drugs")
+def list_drugs():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT DISTINCT drug_name
+        FROM historical_demand
+        ORDER BY drug_name
+    """)
+
+    drugs = [r[0] for r in cursor.fetchall()]
+    conn.close()
+
+    return drugs
 
 
-@router.get("/trend")
-def trend(days: int = 7):
-    return get_recent_trend(limit=days)
+# ---------------------------
+# DRUG DEMAND TREND (from historical_demand)
+# ---------------------------
+@router.get("/drug/{drug_name}/trend")
+def drug_trend(drug_name: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT date, qty
+        FROM historical_demand
+        WHERE drug_name = ?
+        ORDER BY date
+    """, (drug_name,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {"date": r[0], "qty": r[1]}
+        for r in rows
+    ]

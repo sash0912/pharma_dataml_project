@@ -85,12 +85,6 @@
     canvas {
       margin-top: 10px;
     }
-
-    pre {
-      background: #f7f7f7;
-      padding: 10px;
-      border-radius: 6px;
-    }
   </style>
 </head>
 
@@ -105,15 +99,15 @@
   <!-- KPI SUMMARY -->
   <div class="grid">
     <div class="card">
-      <h2>Total Predictions</h2>
+      <h2>Total Records</h2>
       <div class="metric" id="totalPred">–</div>
-      <div class="label">Predictions stored</div>
+      <div class="label">Historical entries</div>
     </div>
 
     <div class="card">
       <h2>Average Demand</h2>
       <div class="metric" id="avgDemand">–</div>
-      <div class="label">Mean predicted quantity</div>
+      <div class="label">Mean quantity</div>
     </div>
 
     <div class="card">
@@ -139,44 +133,12 @@
     </div>
   </div>
 
-  <!-- ASK QUESTION PANEL -->
-  <div class="card" style="margin-top:30px;">
-    <h2>Ask a Question</h2>
-
-    <textarea
-      id="userQuestion"
-      placeholder="Example: How much Amoxicillin is required next month?"
-    ></textarea>
-
-    <button onclick="askQuestion()">Ask</button>
-
-    <div style="margin-top:15px;">
-  <b>Response:</b>
-  <div
-    id="qaResponse"
-    style="
-      margin-top:8px;
-      padding:12px;
-      background:#f8f9fb;
-      border-radius:6px;
-      max-height:200px;
-      overflow-y:auto;
-      white-space:pre-wrap;
-      word-wrap:break-word;
-      line-height:1.4;
-      font-size:14px;
-    "
-  ></div>
-</div>
-
-  </div>
-
   <!-- FORECAST -->
   <div class="grid" style="margin-top:30px;">
     <div class="card">
       <h2>Drug-Level Forecast</h2>
       <label class="label">Select Drug</label>
-      <select id="drugSelect"></select>
+      <select id="drugSelect" onchange="loadDrugTrend(this.value)"></select>
       <button onclick="forecastDrug()">Forecast Next Month</button>
     </div>
 
@@ -190,22 +152,35 @@
 </div>
 
 <script>
+/* ================= CONFIG ================= */
 const API = "http://127.0.0.1:8000";
+
+// Read dataset_id from URL
+const params = new URLSearchParams(window.location.search);
+const DATASET_ID = params.get("dataset_id");
+
+if (!DATASET_ID) {
+  alert("Dataset ID missing. Please upload a CSV first.");
+}
+
+/* ================= GLOBALS ================= */
 let trendChart = null;
 let fullTrendData = [];
 let currentDrug = null;
 
-/* KPI SUMMARY */
-fetch(`${API}/analytics/summary`)
-  .then(r => r.json())
-  .then(d => {
-    totalPred.innerText = d.total_predictions;
-    avgDemand.innerText = d.average_demand;
-    rangeDemand.innerText = `${d.min_demand} – ${d.max_demand}`;
-  });
+/* ================= KPI SUMMARY ================= */
+function loadKpis() {
+  fetch(`${API}/dashboard/${DATASET_ID}/analytics`)
+    .then(r => r.json())
+    .then(d => {
+      totalPred.innerText = d.total_records;
+      avgDemand.innerText = d.average_demand;
+      rangeDemand.innerText = `${d.min_demand} – ${d.max_demand}`;
+    });
+}
 
-/* DRUG LIST */
-fetch(`${API}/analytics/drugs`)
+/* ================= DRUG LIST ================= */
+fetch(`${API}/dashboard/${DATASET_ID}/drugs`)
   .then(r => r.json())
   .then(drugs => {
     const sel = document.getElementById("drugSelect");
@@ -216,16 +191,18 @@ fetch(`${API}/analytics/drugs`)
       o.textContent = d;
       sel.appendChild(o);
     });
+
     if (drugs.length) {
       currentDrug = drugs[0];
       loadDrugTrend(currentDrug);
     }
   });
 
-/* LOAD TREND */
+/* ================= LOAD TREND ================= */
 function loadDrugTrend(drug) {
   currentDrug = drug;
-  fetch(`${API}/analytics/drug/${encodeURIComponent(drug)}/trend`)
+
+  fetch(`${API}/dashboard/${DATASET_ID}/drug/${encodeURIComponent(drug)}/history`)
     .then(r => r.json())
     .then(data => {
       fullTrendData = data || [];
@@ -233,7 +210,7 @@ function loadDrugTrend(drug) {
     });
 }
 
-/* RENDER TREND */
+/* ================= RENDER TREND ================= */
 function renderTrend() {
   if (!fullTrendData.length) return;
 
@@ -264,58 +241,34 @@ function renderTrend() {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        y: { beginAtZero: true },
-        x: {}
+        y: { beginAtZero: true }
       }
     }
   });
 }
 
-/* ASK QUESTION — FIXED ENDPOINT */
-function askQuestion() {
-  const question = userQuestion.value.trim();
-  if (!question) return alert("Enter a question");
-
-  fetch(`${API}/ask`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question })
-  })
-  .then(r => r.json())
-  .then(d => {
-    qaResponse.textContent = d.answer ?? JSON.stringify(d, null, 2);
-  })
-  .catch(() => {
-    qaResponse.textContent = "Backend error";
-  });
-}
-
-/* FORECAST */
+/* ================= FORECAST ================= */
 function forecastDrug() {
   const drug = drugSelect.value;
-  loadDrugTrend(drug);
 
- fetch(`${API}/forecast/drug/${encodeURIComponent(drug)}`)
-  .then(r => r.json())
-  .then(d => {
-    document.getElementById("forecastValue").innerText =
-      d.predicted_next_month_qty ?? "N/A";
-
-    // ✅ REFRESH KPIs AFTER NEW FORECAST
-    loadKpis();
-  });
+  fetch(`${API}/dashboard/${DATASET_ID}/drug/${encodeURIComponent(drug)}/forecast`)
+    .then(r => r.json())
+    .then(d => {
+      forecastValue.innerText = d.predicted_qty ?? "N/A";
+    });
 }
 
-/* DOM SHORTCUTS */
+/* ================= DOM SHORTCUTS ================= */
 const totalPred = document.getElementById("totalPred");
 const avgDemand = document.getElementById("avgDemand");
 const rangeDemand = document.getElementById("rangeDemand");
 const timeRange = document.getElementById("timeRange");
 const trendChartEl = document.getElementById("trendChart");
-const userQuestion = document.getElementById("userQuestion");
-const qaResponse = document.getElementById("qaResponse");
 const drugSelect = document.getElementById("drugSelect");
 const forecastValue = document.getElementById("forecastValue");
+
+/* INIT */
+loadKpis();
 </script>
 
 </body>

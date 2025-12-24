@@ -1,0 +1,22 @@
+Drug Name,Manufacturer,Dosage Form,Strength,Package Size,Units Sold,Revenue,Sale Date,Region,Sales Representative,Customer Type
+Paracetamol,Cipla,Tablet,500 mg,10 tablets,1200,24000,2023-01-15,South India,Rajesh Kumar,Hospital
+Paracetamol,Cipla,Tablet,500 mg,10 tablets,1350,27000,2023-02-15,South India,Rajesh Kumar,Hospital
+Paracetamol,Cipla,Tablet,500 mg,10 tablets,1420,28400,2023-03-15,South India,Rajesh Kumar,Hospital
+Ibuprofen,Dr Reddy's,Tablet,400 mg,10 tablets,900,22500,2023-01-20,West India,Anita Shah,Pharmacy
+Ibuprofen,Dr Reddy's,Tablet,400 mg,10 tablets,980,24500,2023-02-20,West India,Anita Shah,Pharmacy
+Ibuprofen,Dr Reddy's,Tablet,400 mg,10 tablets,1050,26250,2023-03-20,West India,Anita Shah,Pharmacy
+Amoxicillin,Sun Pharma,Capsule,500 mg,15 capsules,760,38000,2023-01-10,North India,Vikram Singh,Hospital
+Amoxicillin,Sun Pharma,Capsule,500 mg,15 capsules,820,41000,2023-02-10,North India,Vikram Singh,Hospital
+Amoxicillin,Sun Pharma,Capsule,500 mg,15 capsules,880,44000,2023-03-10,North India,Vikram Singh,Hospital
+Azithromycin,Lupin,Tablet,250 mg,6 tablets,640,32000,2023-01-18,East India,Sneha Das,Clinic
+Azithromycin,Lupin,Tablet,250 mg,6 tablets,690,34500,2023-02-18,East India,Sneha Das,Clinic
+Azithromycin,Lupin,Tablet,250 mg,6 tablets,730,36500,2023-03-18,East India,Sneha Das,Clinic
+Metformin,USV Pharma,Tablet,500 mg,15 tablets,1100,16500,2023-01-12,South India,Arun Prakash,Pharmacy
+Metformin,USV Pharma,Tablet,500 mg,15 tablets,1180,17700,2023-02-12,South India,Arun Prakash,Pharmacy
+Metformin,USV Pharma,Tablet,500 mg,15 tablets,1250,18750,2023-03-12,South India,Arun Prakash,Pharmacy
+Atorvastatin,Pfizer,Tablet,10 mg,10 tablets,560,28000,2023-01-22,Metro Cities,Neha Malhotra,Hospital
+Atorvastatin,Pfizer,Tablet,10 mg,10 tablets,600,30000,2023-02-22,Metro Cities,Neha Malhotra,Hospital
+Atorvastatin,Pfizer,Tablet,10 mg,10 tablets,650,32500,2023-03-22,Metro Cities,Neha Malhotra,Hospital
+Pantoprazole,Alkem,Tablet,40 mg,10 tablets,980,19600,2023-01-08,Central India,Rohit Verma,Clinic
+Pantoprazole,Alkem,Tablet,40 mg,10 tablets,1040,20800,2023-02-08,Central India,Rohit Verma,Clinic
+Pantoprazole,Alkem,Tablet,40 mg,10 tablets,1120,22400,2023-03-08,Central India,Rohit Verma,Clinic

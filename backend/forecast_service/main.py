@@ -10,6 +10,10 @@ from backend.forecast_service.schemas import ForecastRequest, ForecastResponse
 from backend.forecast_service.analytics import get_basic_analytics, get_recent_trend
 from backend.forecast_service.db import init_db, save_forecast, DB_PATH
 from backend.forecast_service.cache import get_cached_prediction, set_cached_prediction
+from backend.forecast_service.routes.upload import router as upload_router
+from backend.forecast_service.routes.dashboard import router as dashboard_router
+
+
 
 import sqlite3
 
@@ -25,6 +29,11 @@ app.include_router(drug_analytics_router)
 app.include_router(drug_forecast_router)
 app.include_router(qa_router) 
 app.include_router(llm_router)
+app.include_router(upload_router)
+app.include_router(dashboard_router)
+
+
+
 
 app.add_middleware(
     CORSMiddleware,

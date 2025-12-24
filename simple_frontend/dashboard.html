@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Pharma Dashboard</title>
+</head>
+<body style="font-family: Arial; padding: 40px;">
+
+  <h2>Pharma Forecast Dashboard</h2>
+
+  <label>Select Drug:</label>
+  <select id="drugSelect" onchange="loadDrugData()"></select>
+
+  <h3>Analytics</h3>
+  <ul id="analytics"></ul>
+
+  <h3>Historical Demand</h3>
+  <pre id="history"></pre>
+
+  <h3>Forecast</h3>
+  <pre id="forecast"></pre>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const datasetId = params.get("dataset_id");
+
+    async function loadDashboard() {
+      const drugsRes = await fetch(
+        `http://127.0.0.1:8000/dashboard/${datasetId}/drugs`
+      );
+      const drugs = await drugsRes.json();
+
+      const select = document.getElementById("drugSelect");
+      drugs.forEach(drug => {
+        const opt = document.createElement("option");
+        opt.value = drug;
+        opt.innerText = drug;
+        select.appendChild(opt);
+      });
+
+      loadAnalytics();
+      loadDrugData();
+    }
+
+    async function loadAnalytics() {
+      const res = await fetch(
+        `http://127.0.0.1:8000/dashboard/${datasetId}/analytics`
+      );
+      const data = await res.json();
+
+      document.getElementById("analytics").innerHTML = `
+        <li>Total Records: ${data.total_records}</li>
+        <li>Average Demand: ${data.average_demand}</li>
+        <li>Min Demand: ${data.min_demand}</li>
+        <li>Max Demand: ${data.max_demand}</li>
+      `;
+    }
+
+    async function loadDrugData() {
+      const drug = document.getElementById("drugSelect").value;
+
+      const histRes = await fetch(
+        `http://127.0.0.1:8000/dashboard/${datasetId}/drug/${drug}/history`
+      );
+      const history = await histRes.json();
+
+      const forecastRes = await fetch(
+        `http://127.0.0.1:8000/dashboard/${datasetId}/drug/${drug}/forecast`
+      );
+      const forecast = await forecastRes.json();
+
+      document.getElementById("history").innerText =
+        JSON.stringify(history, null, 2);
+
+      document.getElementById("forecast").innerText =
+        JSON.stringify(forecast, null, 2);
+    }
+
+    loadDashboard();
+  </script>
+
+</body>
+</html>

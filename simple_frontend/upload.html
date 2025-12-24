@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Upload Pharmaceutical CSV</title>
+
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f1f3f6;
+      padding: 60px;
+    }
+
+    .card {
+      max-width: 500px;
+      margin: auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #2c5364;
+    }
+
+    input[type="file"] {
+      margin-top: 20px;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 12px 20px;
+      width: 100%;
+      font-size: 15px;
+      border: none;
+      border-radius: 6px;
+      background: #2c5364;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #203a43;
+    }
+
+    #status {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #555;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+    <h2>Upload Pharma Demand CSV</h2>
+
+    <input type="file" id="csvFile" accept=".csv" />
+
+    <button onclick="uploadCSV()">Upload & Forecast</button>
+
+    <div id="status"></div>
+  </div>
+
+  <script>
+    async function uploadCSV() {
+      const fileInput = document.getElementById("csvFile");
+      const status = document.getElementById("status");
+
+      if (!fileInput.files.length) {
+        alert("Please select a CSV file");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      status.innerText = "Uploading CSV and generating forecast...";
+
+      try {
+        const response = await fetch("http://127.0.0.1:8000/upload/", {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error("Upload failed");
+        }
+
+        const data = await response.json();
+
+        // 🔥 REDIRECT TO YOUR FINAL DASHBOARD FILE (index.html)
+        window.location.href = `index.html?dataset_id=${data.dataset_id}`;
+
+      } catch (err) {
+        status.innerText = "Error uploading file. Check backend.";
+      }
+    }
+  </script>
+
+</body>
+</html>

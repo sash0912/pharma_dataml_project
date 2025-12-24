@@ -1,26 +1,58 @@
 import sqlite3
 from datetime import datetime
+import os
 
-DB_PATH = "backend/data/forecasts.db"
+# Absolute-safe DB path
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, "data", "forecasts.db")
+
 
 def get_connection():
-    return sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(
+        DB_PATH,
+        timeout=30,
+        check_same_thread=False
+    )
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    return conn
+
 
 def init_db():
     conn = get_connection()
     cursor = conn.cursor()
 
+    # ----------------------------
+    # Historical demand (ETL)
+    # ----------------------------
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS historical_demand (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            drug_name TEXT,
+            date TEXT,
+            qty INTEGER
+        )
+    """)
+
+    # ----------------------------
+    # Forecasts (USED BY KPIs)
+    # ----------------------------
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS forecasts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at TEXT,
-            lag_1 REAL,
-            lag_3 REAL,
-            lag_6 REAL,
-            lag_12 REAL,
-            rolling_mean_3 REAL,
-            rolling_mean_6 REAL,
-            rolling_std_3 REAL,
+            predicted_qty REAL
+        )
+    """)
+
+    # ----------------------------
+    # Drug-wise forecast history
+    # ----------------------------
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS drug_forecasts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT,
+            drug_name TEXT,
             predicted_qty REAL
         )
     """)
@@ -28,49 +60,42 @@ def init_db():
     conn.commit()
     conn.close()
 
-def save_forecast(input_data: dict, prediction: float):
+
+# --------------------------------------------------
+# Used by /predict endpoint (generic ML forecasting)
+# --------------------------------------------------
+def save_forecast(predicted_qty: float):
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO forecasts (
-            created_at,
-            lag_1, lag_3, lag_6, lag_12,
-            rolling_mean_3, rolling_mean_6, rolling_std_3,
-            predicted_qty
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        datetime.utcnow().isoformat(),
-        input_data["lag_1"],
-        input_data["lag_3"],
-        input_data["lag_6"],
-        input_data["lag_12"],
-        input_data["rolling_mean_3"],
-        input_data["rolling_mean_6"],
-        input_data["rolling_std_3"],
-        prediction
-    ))
-def save_drug_forecast(drug_name, predicted_qty, method):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        INSERT INTO drug_forecasts (created_at, drug_name, predicted_qty, method)
-        VALUES (datetime('now'), ?, ?, ?)
-    """, (drug_name, predicted_qty, method))
-def save_drug_forecast(drug_name: str, predicted_qty: float):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    cursor.execute("""
         INSERT INTO forecasts (created_at, predicted_qty)
-        VALUES (datetime('now'), ?)
-    """, (predicted_qty,))
+        VALUES (?, ?)
+    """, (datetime.utcnow().isoformat(), predicted_qty))
 
     conn.commit()
     conn.close()
 
 
+# --------------------------------------------------
+# Used by drug-wise forecast (AND KPI sync)
+# --------------------------------------------------
+def save_drug_forecast(drug_name: str, predicted_qty: float):
+    conn = get_connection()
+    cursor = conn.cursor()
+    now = datetime.utcnow().isoformat()
 
+    # Save drug-level forecast
+    cursor.execute("""
+        INSERT INTO drug_forecasts (created_at, drug_name, predicted_qty)
+        VALUES (?, ?, ?)
+    """, (now, drug_name, predicted_qty))
 
+    # 🔥 ALSO save to forecasts table (FOR KPI)
+    cursor.execute("""
+        INSERT INTO forecasts (created_at, predicted_qty)
+        VALUES (?, ?)
+    """, (now, predicted_qty))
 
+    conn.commit()
+    conn.close()
